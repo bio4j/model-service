@@ -63,12 +63,3 @@ object Server {
     unfiltered.jetty.Http.local(8080).filter(SillyPlan).run()
   }
 }
-
-/* Example of usage:
-
-```bash
-sbt run
-curl http://localhost:8080/schema/com.bio4j.model.go
-curl http://localhost:8080/schema/com.bio4j.model.go/nodeTypes
-```
-*/
