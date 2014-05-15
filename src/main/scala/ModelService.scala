@@ -10,6 +10,17 @@ import argonaut._, Argonaut._
 import argonaut.integrate.unfiltered._
 
 object Modules {
+  implicit def ModuleEncodeJson: EncodeJson[TypedGraph] =
+    EncodeJson((g: TypedGraph) =>
+      ("pkg" := g.pkg) ->:
+      ("dependencies" := g.dependencies.map(_.pkg).toList) ->:
+      // TODO: we need to go deeper (proper serialization for node/rel/prop-Types)
+      ("nodeTypes" := g.nodeTypes.map(_.toString).toList) ->:
+      ("relationshipTypes" := g.relationshipTypes.map(_.toString).toList) ->:
+      ("propertyTypes" := g.propertyTypes.map(_.toString).toList) ->:
+      jEmptyObject
+    )
+
   val modules = Set[TypedGraph](
     GoModule.go,
     EnzymeDBModule.enzymeDB,
@@ -23,16 +34,7 @@ object Modules {
     UniRefModule.uniref
   )
 
-  implicit def ModuleEncodeJson: EncodeJson[TypedGraph] =
-    EncodeJson((g: TypedGraph) =>
-      ("pkg" := g.pkg) ->:
-      ("dependencies" := g.dependencies.map(_.pkg).toList) ->:
-      // TODO: we need to go deeper (proper serialization for node/rel/prop-Types)
-      ("nodeTypes" := g.nodeTypes.map(_.toString).toList) ->:
-      ("relationshipTypes" := g.relationshipTypes.map(_.toString).toList) ->:
-      ("propertyTypes" := g.propertyTypes.map(_.toString).toList) ->:
-      jEmptyObject
-    )
+  // val jmodules: Json = jArray(modules.map(_.asJson))
 }
 
 object SillyPlan extends unfiltered.filter.Plan {
@@ -40,19 +42,17 @@ object SillyPlan extends unfiltered.filter.Plan {
 
   // TODO: take a look at the integration between argonaut and unfiltered
   def intent = {
-    case req @ Path(Seg("schema" :: id :: tail)) => req match {
+    case req @ Path(Seg("schema" :: id :: path)) => req match {
       case GET(_) => modules find { _.pkg == id } match {
-        case None => NotFound ~> ResponseString("No schema with pkg id: " + id)
         case Some(module) => {
           val jmodule = module.asJson
-          tail match {
-            case Nil => JsonResponse(jmodule, spaces2)
-            case field :: _ => (jmodule -| field) match {
+          if (path.isEmpty) JsonResponse(jmodule, spaces2)
+          else (jmodule -|| path) match {
                 case Some(f) => JsonResponse(f, spaces2)
-                case _ => NotFound ~> ResponseString("No such field: " + field)
+                case _ => NotFound ~> ResponseString("No such field: " + path.mkString("/"))
               } 
-          }
         }
+        case _ => NotFound ~> ResponseString("No schema with pkg id: " + id)
       }
       case _ => MethodNotAllowed ~> ResponseString("Must be GET")
     }
