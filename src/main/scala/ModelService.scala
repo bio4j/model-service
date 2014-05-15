@@ -6,6 +6,8 @@ import unfiltered.request._
 import unfiltered.response._
 import com.ohnosequences.typedGraphs.TypedGraph
 import scala.collection.JavaConversions._
+import argonaut._, Argonaut._
+import argonaut.integrate.unfiltered._
 
 object Modules {
   val modules = Set[TypedGraph](
@@ -21,34 +23,34 @@ object Modules {
     UniRefModule.uniref
   )
 
-  def representSet[T](s: java.util.Set[T]): String = s.mkString("{",", ","}")
-
-  // TODO: this should return some fancy JSON object
-  def representModule(g: TypedGraph): String = {
-    Seq(g.pkg,
-        "dependencies: " + g.dependencies.map(_.pkg).mkString("{",", ","}"),
-        "node types: " + g.nodeTypes.mkString("{",", ","}"),
-        "relationship types: " + g.relationshipTypes.mkString("{",", ","}"),
-        "property types: " + g.propertyTypes.mkString("{",", ","}")
-    ).mkString("\n\n")
-  }
+  implicit def ModuleEncodeJson: EncodeJson[TypedGraph] =
+    EncodeJson((g: TypedGraph) =>
+      ("pkg" := g.pkg) ->:
+      ("dependencies" := g.dependencies.map(_.pkg).toList) ->:
+      // TODO: we need to go deeper (proper serialization for node/rel/prop-Types)
+      ("nodeTypes" := g.nodeTypes.map(_.toString).toList) ->:
+      ("relationshipTypes" := g.relationshipTypes.map(_.toString).toList) ->:
+      ("propertyTypes" := g.propertyTypes.map(_.toString).toList) ->:
+      jEmptyObject
+    )
 }
 
 object SillyPlan extends unfiltered.filter.Plan {
   import Modules._
 
+  // TODO: take a look at the integration between argonaut and unfiltered
   def intent = {
     case req @ Path(Seg("schema" :: id :: tail)) => req match {
-      case GET(_) => {
-        modules find { _.pkg == id } match {
-          case None => NotFound ~> ResponseString("No schema with pkg id: " + id)
-          case Some(module) => tail match {
-            case Nil => ResponseString(representModule(module))
-            case "dependencies"      :: _ => ResponseString(representSet(module.dependencies.map(_.pkg)))
-            case "nodeTypes"         :: _ => ResponseString(representSet(module.nodeTypes))
-            case "relationshipTypes" :: _ => ResponseString(representSet(module.relationshipTypes))
-            case "propertyTypes"     :: _ => ResponseString(representSet(module.propertyTypes))
-            case _ => MethodNotAllowed ~> ResponseString("No such method")
+      case GET(_) => modules find { _.pkg == id } match {
+        case None => NotFound ~> ResponseString("No schema with pkg id: " + id)
+        case Some(module) => {
+          val jmodule = module.asJson
+          tail match {
+            case Nil => JsonResponse(jmodule, spaces2)
+            case field :: _ => (jmodule -| field) match {
+                case Some(f) => JsonResponse(f, spaces2)
+                case _ => NotFound ~> ResponseString("No such field: " + field)
+              } 
           }
         }
       }
