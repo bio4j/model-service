@@ -16,6 +16,13 @@ object Modules {
       jEmptyObject
     )
 
+  implicit def NodeTypeWithPropsEncodeJson(props: List[PropertyType[_,_,_,_,_]]): EncodeJson[NodeType[_, _]] =
+    EncodeJson(t =>
+      ("type" := t.value.toString) ->:
+      ("propertyTypes" := props.filter(t == _.elementType).map(_.fullName)) ->:
+      jEmptyObject
+    )
+
   implicit def RelationshipTypeEncodeJson: EncodeJson[RelationshipType[_, _, _, _, _, _]] =
     EncodeJson(t =>
       ("type" := t.value.toString) ->:
@@ -38,9 +45,10 @@ object Modules {
     EncodeJson(g =>
       ("pkg" := g.pkg) ->:
       ("dependencies" := g.dependencies.toList.map(_.pkg)) ->:
-      ("nodeTypes" := g.nodeTypes.toList.map(_.asJson)) ->:
+      // ("nodeTypes" := g.nodeTypes.toList.map(_.asJson)) ->:
+      ("nodeTypes" := g.nodeTypes.toList.map(NodeTypeWithPropsEncodeJson(g.propertyTypes.toList).encode)) ->:
       ("relationshipTypes" := g.relationshipTypes.toList.map(_.asJson)) ->:
-      ("propertyTypes" := g.propertyTypes.toList.map(_.asJson)) ->:
+      // ("propertyTypes" := g.propertyTypes.toList.map(_.asJson)) ->:
       jEmptyObject
     )
 
