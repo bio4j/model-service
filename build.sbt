@@ -8,6 +8,8 @@ description := "model-service project"
 
 bucketSuffix := "era7.com"
 
+skip in update := true
+
 libraryDependencies ++= Seq(
   "ohnosequences" % "typed-graphs" % "0.1.0-SNAPSHOT",
   "bio4j" % "bio4j" % "0.12.0-SNAPSHOT",
@@ -22,3 +24,5 @@ dependencyOverrides ++= Set(
   "commons-codec" % "commons-codec" % "1.7",
   "net.databinder" %% "unfiltered" % "0.8.0"
 )
+
+Revolver.settings

@@ -4,25 +4,50 @@ import com.bio4j.model._, go._, enzymedb._, isoforms._, ncbiTaxonomy._, proteinI
 
 import unfiltered.request._
 import unfiltered.response._
-import com.ohnosequences.typedGraphs.TypedGraph
+import com.ohnosequences.typedGraphs._
 import scala.collection.JavaConversions._
 import argonaut._, Argonaut._
 import argonaut.integrate.unfiltered._
 
 object Modules {
-  implicit def ModuleEncodeJson: EncodeJson[TypedGraph] =
-    EncodeJson((g: TypedGraph) =>
-      ("pkg" := g.pkg) ->:
-      ("dependencies" := g.dependencies.map(_.pkg).toList) ->:
-      // TODO: we need to go deeper (proper serialization for node/rel/prop-Types)
-      ("nodeTypes" := g.nodeTypes.map(_.toString).toList) ->:
-      ("relationshipTypes" := g.relationshipTypes.map(_.toString).toList) ->:
-      ("propertyTypes" := g.propertyTypes.map(_.toString).toList) ->:
+  implicit def NodeTypeEncodeJson: EncodeJson[NodeType[_, _]] =
+    EncodeJson(t =>
+      ("type" := t.value.toString) ->:
       jEmptyObject
     )
 
+  implicit def RelationshipTypeEncodeJson: EncodeJson[RelationshipType[_, _, _, _, _, _]] =
+    EncodeJson(t =>
+      ("type" := t.value.toString) ->:
+      ("arity" := t.arity.toString) ->:
+      ("sourceType" := t.sourceType.toString) ->:
+      ("targetType" := t.targetType.toString) ->:
+      jEmptyObject
+    )
+
+  implicit def PropertyTypeEncodeJson: EncodeJson[PropertyType[_, _, _, _, _]] =
+    EncodeJson(t =>
+      // FIXME: cannot retrieve namefield :
+      // ("name" := t.name.toString) ->:
+      ("elementType" := t.elementType.toString) ->:
+      ("fullName" := t.fullName.toString) ->:
+      jEmptyObject
+    )
+
+  implicit def ModuleEncodeJson: EncodeJson[TypedGraph] =
+    EncodeJson(g =>
+      ("pkg" := g.pkg) ->:
+      ("dependencies" := g.dependencies.toList.map(_.pkg)) ->:
+      ("nodeTypes" := g.nodeTypes.toList.map(_.asJson)) ->:
+      ("relationshipTypes" := g.relationshipTypes.toList.map(_.asJson)) ->:
+      ("propertyTypes" := g.propertyTypes.toList.map(_.asJson)) ->:
+      jEmptyObject
+    )
+
+  object go extends GoGraph
+
   val modules = Set[TypedGraph](
-    GoModule.go,
+    go,
     EnzymeDBModule.enzymeDB,
     IsoformsModule.isoforms, 
     NcbiTaxonomyModule.ncbiTaxonomy, 
@@ -33,14 +58,12 @@ object Modules {
     UniProt_NcbiTaxonomyModule.uniprot_ncbiTaxonomy, 
     UniRefModule.uniref
   )
-
-  // val jmodules: Json = jArray(modules.map(_.asJson))
 }
 
 object SillyPlan extends unfiltered.filter.Plan {
   import Modules._
 
-  // TODO: take a look at the integration between argonaut and unfiltered
+  // TODO: take a closer look at the integration between argonaut and unfiltered
   def intent = {
     case req @ Path(Seg("schema" :: id :: path)) => req match {
       case GET(_) => modules find { _.pkg == id } match {
@@ -59,7 +82,6 @@ object SillyPlan extends unfiltered.filter.Plan {
   }
 }
 
-/* Embedded server */
 object Server {
   def main(args: Array[String]) {
     unfiltered.jetty.Http.local(8080).filter(SillyPlan).run()
