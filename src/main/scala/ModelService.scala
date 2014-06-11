@@ -16,16 +16,17 @@ object SillyPlan extends unfiltered.filter.Plan {
   // TODO: take a closer look at the integration between argonaut and unfiltered
   def intent = {
     case req @ Path(Seg("schema" :: id :: path)) => req match {
-      case GET(_) => allSchemas.toList find { _.label == id } match {
-        case Some(sch) => {
+      case GET(_) => {
+        //allSchemas.toList find { _.label == id } match {
+        //case Some(sch) => {
           val jsch = go.schema.asJson(SchemaEncodeJson(go.schema))
           if (path.isEmpty) JsonResponse(jsch, spaces2)
           else (jsch -|| path) match {
                 case Some(f) => JsonResponse(f, spaces2)
                 case _ => NotFound ~> ResponseString("Wrong path: " + path.mkString("/"))
               } 
-        }
-        case _ => NotFound ~> ResponseString("No schema with label: " + id)
+        // }
+        // case _ => NotFound ~> ResponseString("No schema with label: " + id)
       }
       case _ => MethodNotAllowed ~> ResponseString("Must be GET")
     }
