@@ -36,18 +36,17 @@ object SchemaSerialize {
       jEmptyObject
     )
 
-  def SchemaEncodeJson[S <: AnySchema](s: S)(implicit
-      dm: ToList.Aux[s.Dependencies, AnySchema],
-      pm: ToList.Aux[s.PropertyTypes, AnyProperty],
-      vm: ToList.Aux[s.VertexTypes, AnyVertexType],
-      em: ToList.Aux[s.EdgeTypes, AnyEdgeType]
-    ): EncodeJson[s.type] =
-    EncodeJson(s =>
+  implicit def SchemaEncodeJson[S <: AnySchema](s: S)(implicit
+      dm: ToList.Aux[S#Dependencies, AnySchema],
+      pm: ToList.Aux[S#PropertyTypes, AnyProperty],
+      vm: ToList.Aux[S#VertexTypes, AnyVertexType],
+      em: ToList.Aux[S#EdgeTypes, AnyEdgeType]
+    ): EncodeJson[S] = EncodeJson(s =>
       ("label"         := s.label) ->:
-      ("dependencies"  :=  s.dependencies.toList.map(_.label)) ->:
-      ("propertyTypes" := s.propertyTypes.toList.map(_.label)) ->:
-      ("vertexTypes"   :=   s.vertexTypes.toList.map(_.label)) ->:
-      ("edgeTypes"     :=     s.edgeTypes.toList.map(_.asJson)) ->:
+      ("dependencies"  :=  dm(s.dependencies).map(_.label)) ->:
+      ("propertyTypes" := pm(s.propertyTypes).map(_.label)) ->:
+      ("vertexTypes"   :=   vm(s.vertexTypes).map(_.label)) ->:
+      ("edgeTypes"     :=     em(s.edgeTypes).map(_.asJson)) ->:
       jEmptyObject
     )
 
