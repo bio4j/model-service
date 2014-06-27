@@ -26,6 +26,7 @@ libraryDependencies ++= Seq(
   "net.databinder" %% "unfiltered-jetty" % "0.8.0",
   "io.argonaut" %% "argonaut" % "6.0.4",
   "io.argonaut" %% "argonaut-unfiltered" % "6.0.4",
+  "ohnosequences" %% "scarph" % "0.1.0-SNAPSHOT",
   "bio4j" %% "scala-model" % "0.1.0-SNAPSHOT",
   "org.scalatest" %% "scalatest" % "2.2.0" % "test"
 )
@@ -37,4 +38,4 @@ dependencyOverrides ++= Set(
   "tomcat" % "jasper-runtime" % "5.5.23"
 )
 
-Revolver.settings
+// Revolver.settings

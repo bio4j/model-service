@@ -9,45 +9,73 @@ import ohnosequences.typesets._
 import scala.collection.JavaConversions._
 import argonaut._, Argonaut._
 
-import shapeless._, poly._ //, ops.hlist._
+import shapeless._, poly._
 
 object SchemaSerialize {
 
-  implicit def PropertyEncodeJson: EncodeJson[AnyProperty] =
-    EncodeJson(p =>
-      ("label" := p.label) ->:
-      // ("type" := p.Raw.getClass.getName) ->:
-      jEmptyObject
-    )
+  object toJson extends Poly1 {
 
-  implicit def EdgeEncodeJson: EncodeJson[AnyEdgeType] =
-    EncodeJson(e =>
-      ("label" := e.label) ->:
-      ("sourceType" := e.sourceType.label) ->:
-      ("targetType" := e.targetType.label) ->:
-      ("inArity" := (e match {
-          case _: ManyIn => "many"
-          case _: OneIn => "one"
-        })) ->:
-      ("outArity" := (e match {
-          case _: ManyOut => "many"
-          case _: OneOut => "one"
-        })) ->:
-      jEmptyObject
-    )
+    implicit def propertyCase[P <: AnyProperty] = at[P]{ p =>
+      Json(
+        "label" := p.label,
+        "type"  := p.classTag.runtimeClass.asInstanceOf[Class[p.Raw]].getCanonicalName
+      )
+    }
 
-  implicit def SchemaEncodeJson[S <: AnySchema](s: S)(implicit
-      dm: ToList.Aux[S#Dependencies, AnySchema],
-      pm: ToList.Aux[S#PropertyTypes, AnyProperty],
-      vm: ToList.Aux[S#VertexTypes, AnyVertexType],
-      em: ToList.Aux[S#EdgeTypes, AnyEdgeType]
-    ): EncodeJson[S] = EncodeJson(s =>
-      ("label"         := s.label) ->:
-      ("dependencies"  :=  dm(s.dependencies).map(_.label)) ->:
-      ("propertyTypes" := pm(s.propertyTypes).map(_.label)) ->:
-      ("vertexTypes"   :=   vm(s.vertexTypes).map(_.label)) ->:
-      ("edgeTypes"     :=     em(s.edgeTypes).map(_.asJson)) ->:
-      jEmptyObject
-    )
+    implicit def vertexCase[VT <: AnyVertexType, Ps <: TypeSet](implicit
+      p: ToList.Aux[Ps, AnyProperty]
+    ) = at[(VT, Ps)]{ case (vt, ps) => 
+      Json(
+        "label" := vt.label,
+        "properties" := p(ps).map(_.label)
+      )
+    }
 
+    implicit def edgeCase[ET <: AnyEdgeType, Ps <: TypeSet](implicit
+      p: ToList.Aux[Ps, AnyProperty]
+    ) = at[(ET, Ps)]{ case (et, ps) =>
+      Json(
+        "label" := et.label,
+        "properties" := p(ps).map(_.label),
+        "source" := Json(
+          "type" := et.sourceType.label,
+          "arity" := (et match {
+              case _: ManyIn => "many"
+              case _: OneIn => "one"
+            })
+        ),
+        "target" := Json(
+          "type" := et.targetType.label,
+          "arity" := (et match {
+              case _: ManyOut => "many"
+              case _: OneOut => "one"
+            })
+        )
+      )
+    }
+
+    implicit def schemaCase[S <: AnyGraphSchema](implicit
+      d: ToList.Aux[S#Dependencies, AnyGraphSchema],
+      p: ListMapper.Aux[toJson.type, S#Properties, Json],
+      v: ListMapper.Aux[toJson.type, S#VerticesWithProperties, Json],
+      e: ListMapper.Aux[toJson.type, S#EdgesWithProperties, Json]
+    ) = at[S]{ s =>
+      Json(
+        "label"        := s.label,
+        "dependencies" := d(s.dependencies).map(_.label),
+        "properties"   := p(s.properties),
+        "vertexTypes"  := v(s.verticesWithProperties),
+        "edgeTypes"    := e(s.edgesWithProperties)
+      )
+    }
+
+    implicit def setCase[S <: TypeSet](implicit
+      toList: ListMapper.Aux[toJson.type, S, Json]
+    ) = at[S]{ schemas =>
+      Json(
+        "name" := "Bio4j",
+        "modules" := toList(schemas)
+      )
+    }
+  }
 }

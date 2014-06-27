@@ -15,23 +15,11 @@ import ohnosequences.scarph._
 
 object SillyPlan extends unfiltered.filter.Plan {
   // TODO: take a closer look at the integration between argonaut and unfiltered
-  object Convert {
-    import shapeless._, poly._
-
-    object toJson extends Poly1 {
-      implicit def default[S <: AnySchema](implicit
-          dm: ToList.Aux[S#Dependencies, AnySchema],
-          pm: ToList.Aux[S#PropertyTypes, AnyProperty],
-          vm: ToList.Aux[S#VertexTypes, AnyVertexType],
-          em: ToList.Aux[S#EdgeTypes, AnyEdgeType]
-        ) = at[S](s => s.asJson(SchemaEncodeJson(s)))
-    }
-  }
-  val jsons: List[Json] = allSchemas.mapList(Convert.toJson)
+  val jsonSchemas: List[Json] = allSchemas.mapList(toJson)
 
   def intent = {
     case req @ Path(Seg("schema" :: id :: path)) => req match {
-      case GET(_) => jsons find { _.field("label") == Some(id.asJson) } match {
+      case GET(_) => jsonSchemas find { _.field("label") == Some(id.asJson) } match {
         case Some(sch) => {
           // val jsch = sch.asJson(SchemaEncodeJson(sch))
           if (path.isEmpty) JsonResponse(sch, spaces2)
@@ -41,7 +29,7 @@ object SillyPlan extends unfiltered.filter.Plan {
               } 
         }
         case _ => {
-          println(jsons)
+          println(jsonSchemas)
           NotFound ~> ResponseString("No schema with label: " + id)
         }
       }
@@ -52,6 +40,6 @@ object SillyPlan extends unfiltered.filter.Plan {
 
 object Server {
   def main(args: Array[String]) {
-    unfiltered.jetty.Http.anylocal.filter(SillyPlan).run()
+    unfiltered.jetty.Http.local(8080).filter(SillyPlan).run()
   }
 }
