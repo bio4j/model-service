@@ -1,14 +1,9 @@
-package bio4j.modelservice
+package bio4j.model.service
 
-import bio4j._
-import bio4j.model._
-import bio4j.schemas._
 import ohnosequences.scarph._
 import ohnosequences.typesets._
 
-import scala.collection.JavaConversions._
 import argonaut._, Argonaut._
-
 import shapeless._, poly._
 
 object SchemaSerialize {
@@ -69,13 +64,5 @@ object SchemaSerialize {
       )
     }
 
-    implicit def setCase[S <: TypeSet](implicit
-      toList: ListMapper.Aux[toJson.type, S, Json]
-    ) = at[S]{ schemas =>
-      Json(
-        "name" := "Bio4j",
-        "modules" := toList(schemas)
-      )
-    }
   }
 }
